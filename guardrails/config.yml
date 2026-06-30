@@ -1,7 +1,9 @@
 models:
   - type: main
     engine: openai
-    model: gpt-4o-mini
+    model: openai/gpt-oss-20b
+    parameters:
+      base_url: https://api.groq.com/openai/v1
 
 instructions:
   - type: general

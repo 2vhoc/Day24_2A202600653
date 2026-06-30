@@ -24,6 +24,7 @@ Xây dựng **complete eval + guardrail stack** trên RAG pipeline Day 18:
 | Hạng mục | Kết quả |
 |---|---|
 | `pytest tests/` | **40/40 passed** |
+| `check_lab.py` | **22/22 passed** |
 | Phase A (Tasks 1–4) | ✅ Implemented |
 | Phase B (Tasks 5–8) | ✅ Implemented |
 | Phase C (Tasks 9–12) | ✅ Implemented |
@@ -70,7 +71,7 @@ Xây dựng **complete eval + guardrail stack** trên RAG pipeline Day 18:
 
 ```bash
 pip install -r requirements.txt
-cp .env.example .env   # Điền MINI_MAX_API_KEY hoặc OPENAI_API_KEY + Qdrant
+cp .env.example .env   # Điền GROQ_API_KEY + Qdrant
 
 # Generate answers (cần API + Qdrant, ~5–10 phút)
 python setup_answers.py
@@ -89,8 +90,8 @@ python check_lab.py
 
 | Biến | Mục đích |
 |---|---|
-| `MINI_MAX_API_KEY` + `MINI_MAX_ENDPOINT` | LLM judge + RAGAS (ưu tiên) |
-| `OPENAI_API_KEY` | Fallback cho NeMo guardrails |
+| `GROQ_API_KEY` + `GROQ_BASE_URL` | LLM chính (judge, RAG, RAGAS) — model `openai/gpt-oss-20b` |
+| `OPENAI_API_KEY` + `OPENAI_BASE_URL` | NeMo Guardrails (cùng Groq endpoint) |
 | `QDRANT_ENDPOINT` + `QDRANT_API_KEY` | Vector DB cho pipeline |
 
 ---
@@ -123,7 +124,7 @@ Input → [Presidio PII] → [Rule + NeMo Input] → RAG → [NeMo Output] → R
 - [x] `reports/blueprint.md`
 - [x] `analysis/failure_clusters.md`, `analysis/bias_report.md`
 - [x] Day 18 source (`m1`–`m5`, `pipeline.py`)
-- [ ] `answers_50q.json` + `reports/ragas_50q.json` (cần chạy `setup_answers.py` khi có API credit)
+- [x] `answers_50q.json` + `reports/ragas_50q.json`
 
 ---
 

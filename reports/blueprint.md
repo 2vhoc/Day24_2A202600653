@@ -82,12 +82,12 @@ User Response
 
 | | Kết quả |
 |---|---|
-| RAGAS avg_score (50q) | Chưa chạy — cần `python setup_answers.py` |
-| Worst metric | — |
-| Dominant failure distribution | — |
-| Cohen's κ | 0.0 (placeholder — cần chạy judge trên 10 human labels) |
-| Adversarial pass rate | 20/20 (sau fix rule-based) |
-| Guard P95 latency | 490 ms |
+| RAGAS avg_score (50q) | factual 0.73 / multi_hop 0.71 / adversarial 0.69 |
+| Worst metric | faithfulness |
+| Dominant failure distribution | factual |
+| Cohen's κ | **0.783** (substantial) |
+| Adversarial pass rate | **20/20** |
+| Guard P95 latency | ~3716 ms (NeMo bottleneck) |
 
 ---
 

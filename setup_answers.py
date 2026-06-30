@@ -75,30 +75,13 @@ def build_pipeline():
 
 
 def run_query(q: str, search, reranker, top_k: int) -> tuple[str, list[str]]:
-    from config import OPENAI_API_KEY
+    from config import generate_answer
 
     results = search.search(q)
     docs    = [{"text": r.text, "score": r.score, "metadata": r.metadata} for r in results]
     reranked = reranker.rerank(q, docs, top_k=top_k)
     contexts = [r.text for r in reranked] if reranked else [r.text for r in results[:3]]
-
-    if OPENAI_API_KEY and contexts:
-        try:
-            from openai import OpenAI
-            client = OpenAI()
-            ctx = "\n\n".join(contexts)
-            resp = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": "Trả lời CHỈ dựa trên context. Nếu không có → nói 'Không tìm thấy.'"},
-                    {"role": "user",   "content": f"Context:\n{ctx}\n\nCâu hỏi: {q}"},
-                ],
-            )
-            return resp.choices[0].message.content, contexts
-        except Exception as e:
-            print(f"  ⚠️  LLM generation failed: {e}")
-
-    return (contexts[0] if contexts else "Không tìm thấy thông tin."), contexts
+    return generate_answer(q, contexts), contexts
 
 
 def main():

@@ -6,7 +6,7 @@ import os, sys, json
 from dataclasses import dataclass
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from config import TEST_SET_PATH, REPORTS_DIR, OPENAI_API_KEY, MINI_MAX_API_KEY, MINI_MAX_ENDPOINT
+from config import TEST_SET_PATH, REPORTS_DIR, get_llm_client_and_model
 
 
 @dataclass
@@ -83,14 +83,14 @@ def evaluate_ragas(questions: list[str], answers: list[str],
         from langchain_community.embeddings import HuggingFaceEmbeddings
         from datasets import Dataset
 
-        if MINI_MAX_API_KEY and MINI_MAX_ENDPOINT:
-            from config import _wrap_clean_client
-            from openai import OpenAI
-            client = _wrap_clean_client(OpenAI(api_key=MINI_MAX_API_KEY, base_url=MINI_MAX_ENDPOINT))
-            llm = llm_factory("MiniMax-M3", client=client, max_tokens=2048)
-        elif OPENAI_API_KEY:
-            client = OpenAI(api_key=OPENAI_API_KEY)
-            llm = llm_factory("gpt-4o-mini", client=client)
+        from config import GROQ_API_KEY, GROQ_BASE_URL, GROQ_MODEL
+
+        client, model = get_llm_client_and_model()
+        if GROQ_API_KEY:
+            os.environ.setdefault("OPENAI_API_KEY", GROQ_API_KEY)
+            llm = llm_factory(model or GROQ_MODEL, base_url=GROQ_BASE_URL)
+        elif client:
+            llm = llm_factory(model)
         else:
             llm = None
 
@@ -108,7 +108,6 @@ def evaluate_ragas(questions: list[str], answers: list[str],
             metrics=[faithfulness, answer_relevancy, context_precision, context_recall],
             llm=llm,
             embeddings=embeddings,
-            show_progress=True,
         )
         df = result.to_pandas()
         per_question = [

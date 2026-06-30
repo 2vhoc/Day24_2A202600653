@@ -36,18 +36,9 @@ def _clean_llm_response(text: str) -> str:
 
 
 def _get_client_and_model():
-    """Ưu tiên MiniMax (nếu có), sau đó OpenAI."""
-    from openai import OpenAI
-
-    mini_key = os.getenv("MINI_MAX_API_KEY")
-    mini_endpoint = os.getenv("MINI_MAX_ENDPOINT")
-    if mini_key and mini_endpoint:
-        return OpenAI(api_key=mini_key, base_url=mini_endpoint), "MiniMax-M3"
-
-    if OPENAI_API_KEY:
-        return OpenAI(api_key=OPENAI_API_KEY), "gpt-4o-mini"
-
-    return None, None
+    """Ưu tiên Groq (config), sau đó MiniMax / OpenAI."""
+    from config import get_llm_client_and_model
+    return get_llm_client_and_model()
 
 
 def _chat(system: str, user: str, max_tokens: int = 150) -> str | None:

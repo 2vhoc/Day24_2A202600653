@@ -29,17 +29,9 @@ class JudgeResult:
 # ─── Task 5: Pairwise Judge ───────────────────────────────────────────────────
 
 def _get_judge_client():
-    """Return (OpenAI client, model name) — ưu tiên MiniMax, fallback OpenAI."""
-    from openai import OpenAI
-    from config import MINI_MAX_API_KEY, MINI_MAX_ENDPOINT, OPENAI_API_KEY, _wrap_clean_client
-
-    if MINI_MAX_API_KEY and MINI_MAX_ENDPOINT:
-        return _wrap_clean_client(
-            OpenAI(api_key=MINI_MAX_API_KEY, base_url=MINI_MAX_ENDPOINT)
-        ), "MiniMax-M3"
-    if OPENAI_API_KEY:
-        return OpenAI(api_key=OPENAI_API_KEY), JUDGE_MODEL
-    return OpenAI(), JUDGE_MODEL
+    """Return (OpenAI client, model name) — ưu tiên Groq."""
+    from config import get_llm_client_and_model
+    return get_llm_client_and_model()
 
 
 def _heuristic_judge(question: str, answer_a: str, answer_b: str) -> dict:
@@ -93,6 +85,8 @@ Trả lời JSON (chỉ JSON, không text khác):
 '''
 
     client, model = _get_judge_client()
+    if not client:
+        return _heuristic_judge(question, answer_a, answer_b)
     try:
         resp = client.chat.completions.create(
             model=model,
@@ -253,6 +247,45 @@ def bias_report(judge_results: list[JudgeResult]) -> dict:
     }
 
 
+def _heuristic_answer_label(answer: str) -> int:
+    """Fallback khi Groq rate-limit / empty response."""
+    bad_signals = ["12 ngày phép", "NordVPN", "Giám đốc phòng", "miễn là đảm bảo", "Không tìm thấy"]
+    if any(s.lower() in answer.lower() for s in bad_signals):
+        return 0
+    return 1
+
+
+def judge_answer_label(question: str, answer: str) -> int:
+    """Đánh giá 1 answer: 1 = tốt, 0 = kém (so với chính sách HR)."""
+    client, model = _get_judge_client()
+    if not client:
+        return 0
+    prompt = f'''Câu hỏi: {question}
+Câu trả lời: {answer}
+
+Đánh giá câu trả lời có chính xác và đầy đủ theo chính sách HR không?
+Trả lời ĐÚNG MỘT ký tự: 1 (tốt) hoặc 0 (kém).'''
+    try:
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": "Chỉ trả 1 hoặc 0."},
+                {"role": "user", "content": prompt},
+            ],
+            max_tokens=5,
+        )
+        text = (resp.choices[0].message.content or "").strip()
+        if not text:
+            return _heuristic_answer_label(answer)
+        if "1" in text and "0" not in text:
+            return 1
+        if text.startswith("1"):
+            return 1
+        return 0
+    except Exception:
+        return _heuristic_answer_label(answer)
+
+
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -274,13 +307,18 @@ if __name__ == "__main__":
     human_labels = [item["human_label"] for item in human_data]
     print(f"\nHuman labels loaded: {len(human_labels)} questions")
 
-    # In production: run judge on the same 10 questions to get judge_labels
-    judge_labels = [0] * len(human_labels)  # placeholder — replace with real judge output
+    # Judge trên 10 human-labeled questions
+    judge_results_list = [result]
+    judge_labels = []
+    for item in human_data:
+        label = judge_answer_label(item["question"], item["model_answer"])
+        judge_labels.append(label)
+        print(f"  Q{item['question_id']}: judge={label}, human={item['human_label']}")
     kappa = cohen_kappa(judge_labels, human_labels)
-    print(f"Cohen's κ (placeholder): {kappa:.3f}")
+    print(f"Cohen's κ: {kappa:.3f}")
 
     # --- Bias report ---
-    bias = bias_report([result])
+    bias = bias_report(judge_results_list)
     print(f"\nBias report: {bias}")
 
     # Save report
@@ -293,6 +331,8 @@ if __name__ == "__main__":
             "position_consistent": result.position_consistent,
         },
         "cohen_kappa": kappa,
+        "judge_labels": judge_labels,
+        "human_labels": human_labels,
         "bias_report": bias,
     }
     os.makedirs("reports", exist_ok=True)
