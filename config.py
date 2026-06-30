@@ -7,6 +7,8 @@ load_dotenv()
 
 # --- API Keys ---
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+MINI_MAX_API_KEY = os.getenv("MINI_MAX_API_KEY", "")
+MINI_MAX_ENDPOINT = os.getenv("MINI_MAX_ENDPOINT", "")
 HF_TOKEN = os.getenv("HF_TOKEN", "")  # Optional: for HuggingFace models
 
 # --- Qdrant (same as Day 18) ---
@@ -36,6 +38,32 @@ ANSWERS_PATH = os.path.join(os.path.dirname(__file__), "answers_50q.json")
 HUMAN_LABELS_PATH = os.path.join(os.path.dirname(__file__), "human_labels_10q.json")
 ADVERSARIAL_SET_PATH = os.path.join(os.path.dirname(__file__), "adversarial_set_20.json")
 GUARDRAILS_CONFIG_DIR = os.path.join(os.path.dirname(__file__), "guardrails")
+REPORTS_DIR = os.path.join(os.path.dirname(__file__), "reports")
+
+
+def _clean_llm_response(text: str) -> str:
+    import re
+    cleaned = re.sub(r"<think>.*?</think>\s*", "", text, flags=re.DOTALL).strip()
+    if cleaned.startswith("```"):
+        cleaned = re.sub(r"^```(?:json)?\s*", "", cleaned)
+        cleaned = re.sub(r"\s*```$", "", cleaned)
+    return cleaned.strip()
+
+
+def _wrap_clean_client(client):
+    """Strip MiniMax thinking blocks from chat completions."""
+    original_create = client.chat.completions.create
+
+    def create(**kwargs):
+        resp = original_create(**kwargs)
+        if resp.choices:
+            msg = resp.choices[0].message
+            if msg.content:
+                msg.content = _clean_llm_response(msg.content)
+        return resp
+
+    client.chat.completions.create = create
+    return client
 
 # --- LLM Judge ---
 JUDGE_MODEL = "gpt-4o-mini"
